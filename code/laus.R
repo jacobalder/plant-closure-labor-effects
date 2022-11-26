@@ -42,15 +42,15 @@ laus_read =
     
     # Clean up the counties, states
     temp = temp[,c("county","state") := tstrsplit(gsub("County","",county_state),", ")
-                  ][,`:=`(county = str_trim(county, "left"),
-                          state = str_trim(state, "right"))
+                  ][,`:=`(county = stringr::str_trim(county, "left"),
+                          state = stringr::str_trim(state, "right"))
                     # Fix District of Columbia
                     ][county_state == "District of Columbia", state:="DC"
                       # Drop Puerto Rico
                       ][state != "PR",]
     
     # Convert to numerics using a function
-    numeric_cols = c("state_fips","county_fips","labor_force","emp","unemp","unemp_rate")
+    numeric_cols = c("labor_force","emp","unemp","unemp_rate")
     temp = temp[,(numeric_cols) := lapply(.SD, function(x){as.numeric(gsub(",","",x))}),.SDcols = numeric_cols]
     
     # Set keys
@@ -83,5 +83,20 @@ for (i in 1:length(laucnty)){
       rm(temp)
   }
 }
+
+# Remove duplicates
+laus = funique(t, c("state","county","year","month"))
+
+# FYI, there's CN, PA, and PS, not sure what the differences are
+cn = laus[,cn:=substring(laus_code,1,2)]
+cn[,.(n = .N),keyby = list(cn,year)]
+
+# Fix the FIPS codes
+laus[,`:=`(state_fips = stringr::str_pad(state_fips,2,side = "left",pad = "0"),
+           county_fips = stringr::str_pad(county_fips,3,side = "left",pad = "0"))
+     ][,fips:=paste0(state_fips,county_fips)]
+
+# Clean up
+rm(laus_read,i,t,cn)
 
 # End of file -------------------------------------------------------------
