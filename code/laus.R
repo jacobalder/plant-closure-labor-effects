@@ -42,8 +42,8 @@ laus_read =
     
     # Clean up the counties, states
     temp = temp[,c("county","state") := tstrsplit(gsub("County","",county_state),", ")
-                  ][,`:=`(county = stringr::str_trim(county, "left"),
-                          state = stringr::str_trim(state, "right"))
+                  ][,`:=`(county = stringr::str_trim(county, "both"),
+                          state = stringr::str_trim(state, "both"))
                     # Fix District of Columbia
                     ][county_state == "District of Columbia", state:="DC"
                       # Drop Puerto Rico
@@ -98,5 +98,7 @@ laus[,`:=`(state_fips = stringr::str_pad(state_fips,2,side = "left",pad = "0"),
 
 # Clean up
 rm(laus_read,i,t,cn)
+
+save(laus,file = file.path(data.dir,"Rdata","laus.Rdata"))
 
 # End of file -------------------------------------------------------------
