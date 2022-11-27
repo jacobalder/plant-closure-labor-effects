@@ -12,11 +12,10 @@ names(eia.RE)
 names(eia.OP)
 
 # Start with retired generators -------------------------------------------
-# Drop generators retired before 2002
 cols_of_interest = c(
   "ID"
-  # ,"entity_id"
-  # ,"plant_id"
+  ,"entity_id"
+  ,"plant_id"
   # ,"generator_id"
   ,"operational_status"
   ,"operating_year"                
@@ -28,28 +27,25 @@ cols_of_interest = c(
   ,"plant_state"
   ,"county"                  
   ,"balancing_authority_code"
-  # ,"sector"                        
+  ,"sector"
   # ,"unit_code"                     
-  # ,"nameplate_capacity_mw"
-  # ,"net_summer_capacity_mw"        
-  # ,"net_winter_capacity_mw"
-  # ,"technology"                    
+  ,"nameplate_capacity_mw"
+  ,"net_summer_capacity_mw"
+  ,"net_winter_capacity_mw"
+  ,"technology"
   ,"energy_source_code"
   ,"prime_mover_code"              
   # ,"nameplate_energy_capacity_m_wh"
   # ,"dc_net_capacity_mw"            
-  # ,"latitude"
-  # ,"longitude"               
+  ,"latitude"
+  ,"longitude"
 )
 
-# Drop anything before 2001
+# Drop retirements outside panel
 re = eia.RE[!is.na(retirement_year) & 
-              (retirement_year >= 2002) & 
-              (retirement_year <= 2020),
+              (retirement_year >= panel_start) & 
+              (retirement_year <= panel_end),
             ..cols_of_interest]
-
-# Add a Covid dummy
-re[retirement_year == 2020 & retirement_month >= 3, post_covid := 1]
 
 # Fuel Source... derived from 
 # https://catalystcoop-pudl.readthedocs.io/en/latest/data_dictionaries/codes_and_labels.html#energy-sources-eia
@@ -78,3 +74,45 @@ re[,.(coal = sum(fuel_type_code_pudl_coal),
       wind = sum(fuel_type_code_pudl_wind),
       n = .N),
    keyby = plant_state]
+
+
+# Then do Operating units -------------------------------------------------
+# Remove retirement bits and add Operating bits
+cols_of_interest = 
+  c(cols_of_interest,
+          "planned_derate_month"
+          ,"planned_derate_of_summer_capacity_mw"
+          ,"planned_derate_year"
+          ,"planned_uprate_month"
+          ,"planned_uprate_of_summer_capacity_mw"
+          ,"planned_uprate_year"
+          ,"planned_retirement_month"
+          ,"planned_retirement_year"
+          ,"status"
+  )[!cols_of_interest %in% c("retirement_year","retirement_month")]
+
+# Merge info about energy sources, drop blanks, keep only active OPerating gens
+op = eia.OP[status %like% "OP",..cols_of_interest
+            ][energy_sources_eia, on = .(energy_source_code = code)
+              ][!is.na(ID),]
+
+# Add generator age @ retirement
+op[,`:=`(age = panel_end - operating_year)]
+
+# Add generator info
+op = fastDummies::dummy_cols(op, select_columns = c("fuel_type_code_pudl"))
+
+# Count number of operating units by state
+op[,.(coal = sum(fuel_type_code_pudl_coal),
+      gas = sum(fuel_type_code_pudl_gas),
+      wind = sum(fuel_type_code_pudl_wind),
+      n = .N),
+   keyby = plant_state]
+
+# Combine Operating and Retired -------------------------------------------
+gens = merge(op,re, all = TRUE)
+
+# Save to speed up load process
+save(gens,op,re,file = file.path(data.dir,"Rdata","clean_R_gens.Rdata"))
+
+# -------------------------------------------------------------------------
