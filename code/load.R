@@ -7,24 +7,13 @@
 ## Outputs:   
 ## Other:     https://www.eia.gov/electricity/data/eia860m/
 ################################################################################
-# Load Packages ----------------------------------------------------------
-require(pacman)
-pacman::p_load( collapse
-                ,data.table
-                ,fixest
-                ,ggplot2
-                ,stats
-                ,stargazer
-)
-
-
 # Load EIA data -----------------------------------------------------------
 load.eia_860m = 
   function(sheet){
     temp = openxlsx::read.xlsx(
-      xlsxFile = file.path(data.dir,"eia","eia-860m","september_generator2022.xlsx")
+      xlsxFile = file.path(data.dir,"eia","eia-860m","january_generator2020.xlsx")
       ,sheet = sheet
-      ,startRow = 3
+      ,startRow = 2
       ,colNames = TRUE
       )
     
@@ -66,3 +55,7 @@ eia.CN = load.eia_860m(sheet = "Canceled or Postponed")
 # Remove unnecessary functions --------------------------------------------
 rm(list=ls(pattern = "^load*"))
 
+# Save to speed up load process
+save(eia.RE,eia.OP,eia.CN,file = file.path(data.dir,"Rdata","january_generator2020.Rdata"))
+
+# -------------------------------------------------------------------------
